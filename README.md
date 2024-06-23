@@ -1,2 +1,2 @@
-# asmfmt
+# asm-fmt
 Zig Assembler Formatter
