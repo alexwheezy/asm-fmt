@@ -37,10 +37,12 @@ const Statement = struct {
     pub fn isGlobal(self: Self) bool {
         var buf: [256]u8 = undefined;
         const up = ascii.upperString(&buf, self.instruction);
-        switch (up) {
-            "DATA", "GLOBL", "FUNCDATA", "PCDATA" => return true,
-            else => return false,
-        }
+        _ = up; // autofix
+        // switch (up) {
+        //     "DATA", "GLOBL", "FUNCDATA", "PCDATA" => return true,
+        //     else => return false,
+        // }
+        return true;
     }
 
     // isText returns true if the instruction is "TEXT"
@@ -100,34 +102,53 @@ const Statement = struct {
 };
 
 const Fstate = struct {
+    out: std.ArrayList([]const u8),
     insideBlock: bool, // Block comment
-    indentation: i32, // Indentation level
+    indentation: u8, // Indentation level
     lastEmpty: bool,
     lastComment: bool,
     lastStar: bool, // Block comment, last line started with a star
     lastLabel: bool,
     anyContents: bool,
     lastContinued: bool, // Last line continued
-    queued: []Statement,
+    queued: ?[]Statement,
     comments: ?[]const String,
     defines: std.StringHashMap(String),
 
     const Self = @This();
 
+    // indent the current line with current indentation.
     pub fn indent(self: *Self) void {
-        _ = self; // autofix
+        for (0..self.indentation) |_| {
+            self.out.writer().writeByte('\t');
+        }
     }
 
     pub fn addLine(self: *Self) void!anyerror {
         _ = self; // autofix
     }
 
+    // flush any queued comments and commands
     pub fn flush(self: *Self) void {
-        _ = self; // autofix
+        for (self.comments.?) |line| {
+            self.indent();
+            self.out.appendSlice(line);
+        }
+        self.comments = null;
+        const stat = formatStatements(self.queued.?);
+        for (stat) |line| {
+            self.indent();
+            self.out.appendSlice(line);
+        }
+        self.queued = null;
     }
 
+    // Add a newline, unless last line was empty or a comment
     pub fn newLine(self: *Self) void {
-        _ = self; // autofix
+        // Always newline before comment-only line.
+        if (!self.lastEmpty and !self.lastComment and !self.lastLabel and self.anyContents) {
+            self.out.writer().writeByte('\n');
+        }
     }
 };
 
@@ -139,6 +160,6 @@ pub fn newStatement(s: String, defs: std.StringHashMap(String)) ?*Statement {
 // formatStatements will format a slice of statements and return each line
 // as a separate string.
 // Comments and line-continuation (\) are aligned with spaces.
-pub fn formatStatements(st: []const Statement) String {
+pub fn formatStatements(st: []const Statement) []const String {
     _ = st; // autofix
 }
